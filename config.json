@@ -1,4 +1,4 @@
-
+{
   "known_image": "./Tests/known_image.jpg",
   "target_image": "./Tests/target_image.jpg",
   "target_video": "./Tests/target_video.mp4",
