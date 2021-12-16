@@ -48,8 +48,8 @@ class PictureOverlay:
     
     def __detectKeypoints(self):  # detectFeatures
         bruteForceMatcher = cv2.BFMatcher()
-        featureExtractor = cv2.xfeatures2d.SIFT_create() 
-        # cv2.SIFT_create()
+        # featureExtractor = cv2.xfeatures2d.SIFT_create()  # cv2.SIFT_create()
+        featureExtractor = cv2.ORB_create(nfeatures = 1000) 
         
         knownKeyPoints, knownDescription = featureExtractor.detectAndCompute(self.knownPictureGray, None)
         targetKeyPoints, targetDescription = featureExtractor.detectAndCompute(self.targePictureGray, None)
@@ -172,35 +172,3 @@ if __name__ == '__main__':
     PictureOverlay().simpleOverlay(config["known_image"], config["target_image"], config["test_image"])
     # PictureOverlay().overlayImage(config["known_image"], config["target_image"], config["test_video"], videoOutput = False)
     # PictureOverlay().overlayVideo(config["known_image"], config["target_video"], config["test_video"], videoOutput = False)
-
-# # ======= imports
-# pass
-
-# # ======= constants
-# pass
-
-# # === template image keypoint and descriptors
-# pass
-
-# # ===== video input, output and metadata
-# pass
-
-# # ========== run on all frames
-# while True:
-#     # ====== find keypoints matches of frame and template
-#     # we saw this in the SIFT notebook
-#     pass
-
-#     # ======== find homography
-#     # also in SIFT notebook
-#     pass
-
-#     # ++++++++ do warping of another image on template image
-#     # we saw this in SIFT notebook
-#     pass
-
-#     # =========== plot and save frame
-#     pass
-
-# # ======== end all
-# pass
