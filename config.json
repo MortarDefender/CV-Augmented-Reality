@@ -1,8 +1,9 @@
 {
   "known_image": "./Tests/known_image.jpg",
+  "known": "./Tests/knwon.jpg",
   "target_image": "./Tests/target_image.jpg",
   "target_video": "./Tests/target_video.mp4",
   "test_video":  "./Tests/testVideo.mp4",
   
-  "test_image": "./Tests/test1.jpg"
+  "test_image": "./Tests/test3.jpg"
 }

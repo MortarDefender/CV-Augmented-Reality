@@ -9,7 +9,7 @@ class PictureOverlay:
         self.__debug = True
         self.knownPicture = None
         self.knownPictureGray = None
-        self.targePicture = None
+        self.targetPicture = None
         self.targePictureGray = None
         self.targetVideo = None
         self.video = None
@@ -36,29 +36,46 @@ class PictureOverlay:
         return videoWriter
     
     def __preperImages(self, knownPictureFileName, targetPictureFileName):
-        self.knownPicture = cv2.imread(knownPictureFileName, cv2.COLOR_BGR2RGB)
-        self.targePicture = cv2.imread(targetPictureFileName, cv2.COLOR_BGR2RGB)
+        self.knownPicture = cv2.cvtColor(cv2.imread(knownPictureFileName), cv2.COLOR_BGR2RGB)
+        self.targetPicture = cv2.cvtColor(cv2.imread(targetPictureFileName), cv2.COLOR_BGR2RGB)
+        
         self.knownPictureGray = cv2.cvtColor(self.knownPicture, cv2.COLOR_RGB2GRAY)
-        self.targePictureGray = cv2.cvtColor(self.targePicture, cv2.COLOR_RGB2GRAY)
+        self.targetPictureGray = cv2.cvtColor(self.targetPicture, cv2.COLOR_RGB2GRAY)
         
         height, width, _ = self.knownPicture.shape
-        self.targePicture = cv2.resize(self.targePicture, (height, width))
+        self.targetPicture = cv2.resize(self.targetPicture, (width, height))
+        self.targetPictureGray = cv2.resize(self.targetPictureGray, (width, height))
+        
+        self.orgPictureGray = cv2.cvtColor(self.__originalFrame, cv2.COLOR_RGB2GRAY)
+        
+        # print(self.knownPicture.shape)
+        # print(self.knownPictureGray.shape)
+        # print(self.knownPicture.shape)
+        # print(self.knownPicture.shape)
         
         self.__points = np.float32([[0, 0], [0, height], [width, height], [width, 0]]).reshape(-1, 1, 2)  ### 
     
     def __detectKeypoints(self):  # detectFeatures
         bruteForceMatcher = cv2.BFMatcher()
-        # featureExtractor = cv2.xfeatures2d.SIFT_create()  # cv2.SIFT_create()
-        featureExtractor = cv2.ORB_create(nfeatures = 1000) 
+        self.featureExtractor = cv2.SIFT_create()
+        # self.featureExtractor = cv2.ORB_create(nfeatures = 1000) 
         
-        knownKeyPoints, knownDescription = featureExtractor.detectAndCompute(self.knownPictureGray, None)
-        targetKeyPoints, targetDescription = featureExtractor.detectAndCompute(self.targePictureGray, None)
+        knownKeyPoints, knownDescription = self.featureExtractor.detectAndCompute(self.knownPictureGray, None)
+        # targetKeyPoints, targetDescription = self.featureExtractor.detectAndCompute(self.targetPictureGray, None)
+        targetKeyPoints, targetDescription = self.featureExtractor.detectAndCompute(self.orgPictureGray, None)
         
         if self.__debug:
-            test = cv2.drawKeypoints(self.knownPicture, knownKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # test = cv2.drawKeypoints(self.targePicture, targetKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            test1 = cv2.drawKeypoints(self.knownPicture, knownKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # test = cv2.drawKeypoints(self.targetPicture, targetKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             plt.figure(figsize=(10, 10))
-            plt.imshow(test)
+            plt.imshow(test1)
+            plt.title("keypoints")
+            plt.show()
+            
+            # test2 = cv2.drawKeypoints(self.targetPicture, targetKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            test2 = cv2.drawKeypoints(self.__originalFrame, targetKeyPoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            plt.figure(figsize=(10, 10))
+            plt.imshow(test2)
             plt.title("keypoints")
             plt.show()
         
@@ -66,49 +83,65 @@ class PictureOverlay:
         # possibleMatches = list(filter(lambda match: match[0].distance / match[1].distance < 0.5, matches))
         
         # possibleMatches = [match for match in matches if match[0].distance / match[1].distance < 0.5]
-        possibleMatches_list = []
+        # possibleMatches_list = []
+        # for m in matches:
+        #     if m[0].distance / m[1].distance < 0.5:
+        #         possibleMatches_list.append(m)
+        # possibleMatches = np.asarray(possibleMatches_list)[:, 0]
+        
+        possibleMatches = []
         for m in matches:
-            if m[0].distance / m[1].distance < 0.5:
-                print(m)
-                possibleMatches_list.append(m)
-        possibleMatches = np.asarray(possibleMatches_list)[:,0]
+            if m[0].distance / m[1].distance < 0.3:
+            # if m[0].distance < 0.75 * m[].distance:
+                possibleMatches.append(m)
+        possibleMatches_arr = np.asarray(possibleMatches)[:, 0]
         
         
         if self.__debug:
-            print(possibleMatches_list)
-            # imageMatches = cv2.drawMatchesKnn(self.knownPicture, knownDescription, self.targePicture, targetDescription, possibleMatches[0:30], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-            imageMatches = cv2.drawMatchesKnn(self.knownPicture, knownKeyPoints, self.targePicture, targetKeyPoints, possibleMatches[0:30], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            # imageMatches = cv2.drawMatchesKnn(self.knownPicture, knownDescription, self.targetPicture, targetDescription, possibleMatches[0:30], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            # imageMatches = cv2.drawMatchesKnn(self.knownPicture, knownKeyPoints, self.targetPicture, targetKeyPoints, possibleMatches[0:30], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            imageMatches = cv2.drawMatchesKnn(self.knownPicture, knownKeyPoints, self.__originalFrame, targetKeyPoints, possibleMatches[0:30], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
             plt.figure(figsize=(20, 20))
             plt.imshow(imageMatches)
             plt.title("keypoints matches")
             plt.show()
         
-        print(possibleMatches)
-        print(possibleMatches[0])
-        print(type(possibleMatches[0]))
+        # print(possibleMatches)
+        # print(possibleMatches[0])
+        # print(type(possibleMatches[0]))
         
-        goodKnownKeypoints = np.array([knownKeyPoints[m.queryIdx].pt for m in possibleMatches])
-        goodTargetKeypoints = np.array([targetKeyPoints[m.queryIdx].pt for m in possibleMatches])
-        homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodTargetKeypoints, cv2.RANSAC, 5.0)
+        goodKnownKeypoints = np.array([knownKeyPoints[m.queryIdx].pt for m in possibleMatches_arr])
+        goodTargetKeypoints = np.array([targetKeyPoints[m.trainIdx].pt for m in possibleMatches_arr])
+        homographicMatrix, masked = cv2.findHomography(goodTargetKeypoints, goodKnownKeypoints, cv2.RANSAC, 5.0)
         
         if self.__debug:
             print(homographicMatrix)
         
-        wrappedPicture = cv2.warpPerspective(self.targePicture, homographicMatrix, (self.origPicture.shape[1], self.origPicture.shape[0]))
+        # wrappedPicture = cv2.warpPerspective(self.targetPicture, homographicMatrix, (self.__originalFrame.shape[1], self.__originalFrame.shape[0]))
+        wrappedPicture = cv2.warpPerspective(self.__originalFrame, homographicMatrix, (self.__originalFrame.shape[1], self.__originalFrame.shape[0]))
+                       # cv2.warpPerspective(rgb_r, H, (rgb_l.shape[1] + rgb_r.shape[1], rgb_l.shape[0]))
+        # wrappedPicture = cv2.warpPerspective(self.targetPicture, homographicMatrix, (self.knownPicture.shape[1] + self.targetPicture.shape[1], self.knownPicture.shape[0]))
+        # wrappedPicture[0:self.knownPicture.shape[0], 0:self.knownPicture.shape[1]] = self.knownPicture
         
         return wrappedPicture, homographicMatrix
     
     def __overlayImages(self, wrappedPicture, homographicMatrix):
         whiteColor = (255, 255, 255)
-        dst = cv2.prespectiveTransform(self.__points, homographicMatrix)  ### 
-        mask = np.zeros((self.__originalFrame.shape[0], self.__originalFrame[1]), np.uint8)
+        dst = cv2.perspectiveTransform(self.__points, homographicMatrix)  ### 
+        mask = np.zeros((self.__originalFrame.shape[0], self.__originalFrame.shape[1]), np.uint8)
         cv2.fillPoly(mask, [np.int32(dst)], whiteColor)
         maskInverse = cv2.bitwise_not(mask)
-        self.__currentFrame = cv2.bitwise_and(self.__currentFrame, self.__currentFrame, mask = maskInverse)
-        self.__originalFrame = cv2.bitwise_or(wrappedPicture, self.__currentFrame)
+        self.__originalFrame = cv2.bitwise_and(self.__originalFrame, self.__originalFrame, mask = maskInverse)
+        self.__originalFrame = cv2.bitwise_or(wrappedPicture, self.__originalFrame)
     
     def __overlay(self):
         wrappedPicture, homographicMatrix = self.__detectKeypoints()
+        
+        plt.figure(figsize=(20, 20))
+        plt.imshow(wrappedPicture)
+        plt.title("wrappedPicture")
+        plt.show()
+        
         self.__overlayImages(wrappedPicture, homographicMatrix)
         self.__showCurrentImage()        
     
@@ -123,7 +156,7 @@ class PictureOverlay:
         return cv2.waitKey(25) & 0xFF == ord('q')
     
     def simpleOverlay(self, knownPictureFileName, targetPictureFileName, videoPictureFileName):
-        self.__originalFrame = cv2.imread(videoPictureFileName)
+        self.__originalFrame = cv2.cvtColor(cv2.imread(videoPictureFileName), cv2.COLOR_BGR2RGB)
         self.__preperImages(knownPictureFileName, targetPictureFileName)
         self.__currentFrame = self.__originalFrame.copy()
         self.__overlay()
@@ -164,11 +197,72 @@ class PictureOverlay:
     def overlayVideo(self, knownPictureFileName, targetVideoFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
         pass
 
+MAX_FEATURES = 500
+GOOD_MATCH_PERCENT = 0.15
+
+def alignImages(im1, im2):
+    im1 = cv2.imread(im1)
+    im2 = cv2.imread(im2)
+    
+    # Convert images to grayscale
+    im1Gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2Gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
+    
+    # Detect ORB features and compute descriptors.
+    # orb = cv2.SIFT_create()
+    orb = cv2.ORB_create(MAX_FEATURES)
+    keypoints1, descriptors1 = orb.detectAndCompute(im1Gray, None)
+    keypoints2, descriptors2 = orb.detectAndCompute(im2Gray, None)
+    
+    # Match features.
+    matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+    matches = matcher.match(descriptors1, descriptors2, None)
+    
+    # bruteForceMatcher = cv2.BFMatcher()
+    # matches = bruteForceMatcher.knnMatch(descriptors1, descriptors2, k = 2)
+    
+    # Sort matches by score
+    # matches.sort(key=lambda x: x.distance, reverse=False)
+    
+    # Remove not so good matches
+    numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
+    matches = matches[:numGoodMatches]
+    
+    # Draw top matches
+    imMatches = cv2.drawMatches(im1, keypoints1, im2, keypoints2, matches, None)
+    cv2.imwrite("matches.jpg", imMatches)
+    
+    # Extract location of good matches
+    points1 = np.zeros((len(matches), 2), dtype=np.float32)
+    points2 = np.zeros((len(matches), 2), dtype=np.float32)
+    
+    for i, match in enumerate(matches):
+        points1[i, :] = keypoints1[match.queryIdx].pt
+        points2[i, :] = keypoints2[match.trainIdx].pt
+    
+    # Find homography
+    h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
+    
+    # Use homography
+    height, width, channels = im2.shape
+    im1Reg = cv2.warpPerspective(im1, h, (width, height))
+    
+    return im1Reg, h
+
+
 
 if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
     
-    PictureOverlay().simpleOverlay(config["known_image"], config["target_image"], config["test_image"])
+    # imReg, h = alignImages(config["test_image"], config["known_image"])
+    imReg, h = alignImages("./Tests/left.jpg", "./Tests/right.jpg")
+    cv2.imshow("align", imReg)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # PictureOverlay().simpleOverlay(config["known_image"], config["target_image"], config["test_image"])
+    # PictureOverlay().simpleOverlay(config["known_image"], "./Tests/left.jpg", config["test_image"])
+    # PictureOverlay().simpleOverlay("./Tests/left.jpg", "./Tests/right.jpg", config["test_image"])
     # PictureOverlay().overlayImage(config["known_image"], config["target_image"], config["test_video"], videoOutput = False)
     # PictureOverlay().overlayVideo(config["known_image"], config["target_video"], config["test_video"], videoOutput = False)

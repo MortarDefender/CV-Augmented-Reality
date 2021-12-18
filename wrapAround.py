@@ -10,7 +10,7 @@ rgb_r = cv2.cvtColor(cv2.imread("./Tests/right.jpg"), cv2.COLOR_BGR2RGB)
 gray_r = cv2.cvtColor(rgb_r, cv2.COLOR_RGB2GRAY)
 
 # use orb if sift is not installed
-feature_extractor = cv2.xfeatures2d.SIFT_create()  # cv2.SIFT_create()
+feature_extractor = cv2.SIFT_create()  # cv2.SIFT_create()
 
 # find the keypoints and descriptors with chosen feature_extractor
 kp_l, desc_l = feature_extractor.detectAndCompute(gray_l, None)
