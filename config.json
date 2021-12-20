@@ -1,9 +1,11 @@
 {
-  "known_image": "./Tests/known_image.jpg",
+  "known_image": "./Tests/known_image1.jpg",
+  "known_image2": "./Tests/known23.png",
   "known": "./Tests/knwon.jpg",
   "target_image": "./Tests/target_image.jpg",
   "target_video": "./Tests/target_video.mp4",
-  "test_video":  "./Tests/testVideo.mp4",
+  "test_video":  "./Tests/video_test.mp4",
   
-  "test_image": "./Tests/test3.jpg"
+  "test_image": "./Tests/test3.jpg",
+  "test_image2": "./Tests/test22.png"
 }

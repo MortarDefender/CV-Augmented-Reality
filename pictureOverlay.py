@@ -201,64 +201,150 @@ MAX_FEATURES = 500
 GOOD_MATCH_PERCENT = 0.15
 
 def alignImages(im1, im2):
-    im1 = cv2.imread(im1)
-    im2 = cv2.imread(im2)
+    
+    # im1 = cv2.imread(im1)
+    # im2 = cv2.imread(im2)
     
     # Convert images to grayscale
     im1Gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
     im2Gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
-    
+
     # Detect ORB features and compute descriptors.
-    # orb = cv2.SIFT_create()
     orb = cv2.ORB_create(MAX_FEATURES)
     keypoints1, descriptors1 = orb.detectAndCompute(im1Gray, None)
     keypoints2, descriptors2 = orb.detectAndCompute(im2Gray, None)
-    
+
     # Match features.
     matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
-    matches = matcher.match(descriptors1, descriptors2, None)
-    
-    # bruteForceMatcher = cv2.BFMatcher()
-    # matches = bruteForceMatcher.knnMatch(descriptors1, descriptors2, k = 2)
-    
+    matches = list(matcher.match(descriptors1, descriptors2, None))
+
     # Sort matches by score
-    # matches.sort(key=lambda x: x.distance, reverse=False)
-    
+    matches.sort(key=lambda x: x.distance, reverse=False)
+
     # Remove not so good matches
     numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
     matches = matches[:numGoodMatches]
-    
+
     # Draw top matches
     imMatches = cv2.drawMatches(im1, keypoints1, im2, keypoints2, matches, None)
-    cv2.imwrite("matches.jpg", imMatches)
-    
+    # cv2.imwrite("matches.jpg", imMatches)
+
     # Extract location of good matches
     points1 = np.zeros((len(matches), 2), dtype=np.float32)
     points2 = np.zeros((len(matches), 2), dtype=np.float32)
-    
+
     for i, match in enumerate(matches):
-        points1[i, :] = keypoints1[match.queryIdx].pt
-        points2[i, :] = keypoints2[match.trainIdx].pt
+      points1[i, :] = keypoints1[match.queryIdx].pt
+      points2[i, :] = keypoints2[match.trainIdx].pt
+
+    # Find homography
+    h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
+
+    # Use homography
+    height, width, channels = im2.shape
+    
+    # return imMatches, h
+    
+    try:
+        im1Reg = cv2.warpPerspective(im1, h, (width, height))
+    except Exception:
+        print("error")
+        return im2, h
+    
+    im = np.zeros_like(im1)
+    im = cv2.bitwise_or(im1Reg, im)
+    return im, h
+    # return im1Reg, h
+
+
+def alignImages2(im1, im2):
+    
+    # Convert images to grayscale
+    im1Gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2Gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
+
+    # Detect ORB features and compute descriptors.
+    extractor = cv2.SIFT_create()
+    keypoints1, descriptors1 = extractor.detectAndCompute(im1Gray, None)
+    keypoints2, descriptors2 = extractor.detectAndCompute(im2Gray, None)
+
+    # Match features.
+    matcher = cv2.BFMatcher()
+    matches = list(matcher.knnMatch(descriptors1, descriptors2, k = 2))
+
+    # Sort matches by score
+    matches.sort(key=lambda x: x[0].distance / x[1].distance, reverse=False)
+    matches = [match for match in matches if match[0].distance / match[1].distance < 1]
+    
+    # Remove not so good matches
+    # numGoodMatches = int(len(matches) * GOOD_MATCH_PERCENT)
+    # matches = matches[:numGoodMatches]
+
+    # Draw top matches
+    imMatches = cv2.drawMatchesKnn(im1, keypoints1, im2, keypoints2, matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    # cv2.imwrite("matches.jpg", imMatches)
+    
+    # return imMatches, None
+    
+    # Extract location of good matches
+    # points1 = np.zeros((len(matches), 2), dtype=np.float32)
+    # points2 = np.zeros((len(matches), 2), dtype=np.float32)
+
+    # for i, match in enumerate(matches):
+    #   points1[i, :] = keypoints1[match.queryIdx].pt
+    #   points2[i, :] = keypoints2[match.trainIdx].pt
+    matches = np.asarray(matches)[:, 0]
+    points1 = np.array([keypoints1[m.queryIdx].pt for m in matches])
+    points2 = np.array([keypoints2[m.trainIdx].pt for m in matches])
     
     # Find homography
     h, mask = cv2.findHomography(points1, points2, cv2.RANSAC)
-    
-    # Use homography
-    height, width, channels = im2.shape
-    im1Reg = cv2.warpPerspective(im1, h, (width, height))
-    
-    return im1Reg, h
 
+    # Use homography
+    height, width, channels = im1.shape
+    
+    try:
+        im1Reg = cv2.warpPerspective(im1, h, (width, height))
+    except Exception:
+        print("error")
+        return im2, h
+    
+    return im1, None # im1Reg, h
+
+
+def overlay(originalImage, wrappedPicture, homographicMatrix, height, width):
+    whiteColor = (255, 255, 255)
+    points = np.float32([[0, 0], [0, height], [width, height], [width, 0]]).reshape(-1, 1, 2)
+    dst = cv2.perspectiveTransform(points, homographicMatrix)
+    mask = np.zeros((originalImage.shape[0], originalImage.shape[1]), np.uint8)
+    cv2.fillPoly(mask, [np.int32(dst)], whiteColor)
+    maskInverse = cv2.bitwise_not(mask)
+    originalImage = cv2.bitwise_and(originalImage, originalImage, mask = maskInverse)
+    originalImage = cv2.bitwise_or(wrappedPicture, originalImage)
+    return originalImage
 
 
 if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
     
-    # imReg, h = alignImages(config["test_image"], config["known_image"])
-    imReg, h = alignImages("./Tests/left.jpg", "./Tests/right.jpg")
-    cv2.imshow("align", imReg)
-    cv2.waitKey(0)
+    myVid = cv2.VideoCapture(config['test_video'])
+    knownImage = cv2.imread(config["known_image2"])
+    # knownImage = cv2.imread("./Tests/left.jpg")
+    
+    while True:
+        success ,testImage = myVid.read()
+        
+        if not success or cv2.waitKey(25) & 0xFF == ord('q'):
+            break
+        
+        imReg, h = alignImages(testImage, knownImage)
+        cv2.imshow('Frame', imReg)
+        
+    # imReg, h = alignImages(config["test_image2"], config["known_image"])
+    # # imReg, h = alignImages(testImage, config["known_image"])
+    # cv2.imshow("align", imReg)
+    # cv2.waitKey(0)
     cv2.destroyAllWindows()
 
     # PictureOverlay().simpleOverlay(config["known_image"], config["target_image"], config["test_image"])
