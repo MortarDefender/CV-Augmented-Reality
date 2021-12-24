@@ -76,13 +76,10 @@ class PictureOverlay:
         matches.sort(key=lambda x: x[0].distance / x[1].distance, reverse = False)
         matches = [match for match in matches if match[0].distance / match[1].distance < minimumDistance]
         
-        self.matchesImage = cv2.drawMatchesKnn(self.__videoFrame, frameKeyPoints, self.__knownPicture, knownKeyPoints, matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        
-        if True: # self.__debug:
+        if self.__debug:
             matchesImage = cv2.drawMatchesKnn(self.__videoFrame, frameKeyPoints, self.__knownPicture, knownKeyPoints, matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
             cv2.imshow('matchesImage', matchesImage)
-            # cv2.waitKey(0)
-        
+           
         try:
             matches = np.asarray(matches)[:, 0]
             goodFrameKeypoints = np.array([frameKeyPoints[m.queryIdx].pt for m in matches])
@@ -148,7 +145,7 @@ class PictureOverlay:
                     videoWriter = self.__getVideoWriter(self.matchesImage, outputFileName)
                 
                 if videoOutput:
-                    videoWriter.write(self.matchesImage) # self.__videoFrame)
+                    videoWriter.write(self.__videoFrame)
 
             videoCapture.release()
 
@@ -194,5 +191,5 @@ if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
     
-    PictureOverlay().overlayImage(config["known_image"], config["target_image"], config["test_video"], videoOutput = True)
+    PictureOverlay().overlayImage(config["known_image"], config["target_image"], config["test_video"], videoOutput = False)
     # PictureOverlay().overlayVideo(config["known_image"], config["target_video"], config["test_video"], videoOutput = False)
