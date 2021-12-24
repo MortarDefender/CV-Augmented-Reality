@@ -55,7 +55,7 @@ class PictureOverlay:
         
         self.__targetPicture = cv2.resize(self.__targetPicture, (width, height))
     
-    def __detectFeatures(self, minimumDistance = 0.5):
+    def __detectFeatures(self, minimumDistance = 0.75):
         """ detect features within the known image and the video frame image and build the homographic matrix """
         
         self.__matcher = cv2.BFMatcher()
@@ -74,7 +74,7 @@ class PictureOverlay:
         
         matches = list(self.__matcher.knnMatch(frameDescription, knownDescription, k = 2))
         matches.sort(key=lambda x: x[0].distance / x[1].distance, reverse = False)
-        matches = [match for match in matches if match[0].distance / match[1].distance < minimumDistance]
+        matches = [match for match in matches if match[0].distance / match[1].distance < minimumDistance][:30]
         
         if self.__debug:
             matchesImage = cv2.drawMatchesKnn(self.__videoFrame, frameKeyPoints, self.__knownPicture, knownKeyPoints, matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
@@ -86,8 +86,8 @@ class PictureOverlay:
             goodKnownKeypoints = np.array([knownKeyPoints[m.trainIdx].pt for m in matches])
             homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodFrameKeypoints, cv2.RANSAC, 5.0)
         except Exception:
-            print("error")
-            return self.__detectFeatures(1)
+            print("could not find enught features, trying with larger minimum distance")
+            return self.__detectFeatures(minimumDistance + 0.25)
         
         if self.__debug:
             print(homographicMatrix)
@@ -122,45 +122,8 @@ class PictureOverlay:
         
         return cv2.waitKey(25) & 0xFF == ord('q')
     
-    def overlayImage(self, knownPictureFileName, targetPictureFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
-        """ overlay the target picture onto the known picture for each frame of the video, if videoOutput is true then there will be an output file of the video """
-        
-        videoWriter = None
-        videoCapture = self.__getVideoCapture(videoFileName)
-        
-        self.__preperImages(knownPictureFileName, targetPictureFileName)
-        
-        if videoCapture is not None:
-            while videoCapture.isOpened():
-                ret, self.__videoFrame = videoCapture.read()
-                
-                if not ret or self.__quitDetected():
-                    break
-                
-                self.__videoFrameGray = cv2.cvtColor(self.__videoFrame, cv2.COLOR_RGB2GRAY)
-                
-                self.__detectAndOverlay()
-                
-                if videoOutput and videoWriter is None:
-                    videoWriter = self.__getVideoWriter(self.matchesImage, outputFileName)
-                
-                if videoOutput:
-                    videoWriter.write(self.__videoFrame)
-
-            videoCapture.release()
-
-            if videoOutput:
-                videoWriter.release()
-        cv2.destroyAllWindows()
-
-    
-    def overlayVideo(self, knownPictureFileName, targetVideoFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
-        videoWriter = None
-        videoCapture = self.__getVideoCapture(videoFileName)
-        targetVideoCapture = self.__getVideoCapture(targetVideoFileName)
-        
-        self.__knownPicture = cv2.imread(knownPictureFileName)
-        self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
+    def __runOverlayLoop(self, videoWriter, videoCapture, outputFileName = "output.avi", videoOutput = True, middleRunFunction = None):
+        """ """
         
         if videoCapture is not None:
             while videoCapture.isOpened():
@@ -172,7 +135,8 @@ class PictureOverlay:
                 if videoOutput and videoWriter is None:
                     videoWriter = self.__getVideoWriter(self.__videoFrame, outputFileName)
                 
-                targetImageSuccess = self.__preperAndGetFrame(targetVideoCapture)
+                if middleRunFunction is not None:
+                    middleRunFunction()
                 
                 self.__videoFrameGray = cv2.cvtColor(self.__videoFrame, cv2.COLOR_RGB2GRAY)
                 
@@ -186,6 +150,32 @@ class PictureOverlay:
             if videoOutput:
                 videoWriter.release()
         cv2.destroyAllWindows()
+        
+    
+    def overlayImage(self, knownPictureFileName, targetPictureFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
+        """ overlay the target picture onto the known picture for each frame of the video, if videoOutput is true then there will be an output file of the video """
+        
+        videoWriter = None
+        videoCapture = self.__getVideoCapture(videoFileName)
+        
+        self.__preperImages(knownPictureFileName, targetPictureFileName)
+        
+        self.__runOverlayLoop(videoWriter, videoCapture, outputFileName, videoOutput)
+
+    
+    def overlayVideo(self, knownPictureFileName, targetVideoFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
+        """ """
+        
+        videoWriter = None
+        videoCapture = self.__getVideoCapture(videoFileName)
+        targetVideoCapture = self.__getVideoCapture(targetVideoFileName)
+        
+        self.__knownPicture = cv2.imread(knownPictureFileName)
+        self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
+        
+        self.__runOverlayLoop(videoWriter, videoCapture, outputFileName, videoOutput, lambda : self.__preperAndGetFrame(targetVideoCapture))
+        
+        targetVideoCapture.release()
 
 if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
