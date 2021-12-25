@@ -3,7 +3,7 @@ import cv2
 import json
 import pickle
 import numpy as np
-from glob import glob as search
+# from glob import glob as search
 from matplotlib import pyplot as plt
 from mesh_renderer import MeshRenderer
 
@@ -42,30 +42,33 @@ class ObjectOverlay:
         self.__knownPicture = cv2.imread(knownPictureFileName)
         self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
     
-    def __calibrateCamera(self, calibrateDirectory, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
-        """ """
+    def __calibrateCamera(self, calibrationVideo, videoFeed = False, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
+        """ calibrate the camera and get the current camera matrix and meta information """
         
         if not os.path.isfile(savedFile):
             rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile), 'rb')
             return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
         
+        index = 0
         obj_points = []
         img_points = []
         square_size = 2.88
         pattern_size = (9, 6)
         
-        calibratePictures = search(f"{calibrateDirectory}/*.jpg")
-        height, width = cv2.imread(calibratePictures[0]).shape[:2]
+        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if videoFeed else calibrationVideo
         pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
         pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
         pattern_points *= square_size
         
-        for i, pictureFileName in enumerate(calibratePictures):
-            picture = cv2.read(pictureFileName)
+        while calibrationVideoCapture.isOpened():
+            sucess, picture = calibrationVideoCapture.read()
             picture = cv2.cvtColor(picture, cv2.COLOR_BGR2RGB)
             pictureGrey = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
             
             found, corners = cv2.findChessboardCorners(pictureGrey, pattern_size)
+            
+            if index == 0:
+                height, width = picture.shape[:2]
             
             if found:
                 term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.1)
@@ -73,13 +76,14 @@ class ObjectOverlay:
             else:
                 continue
             
-            if self.__debug and i < 12:
+            if self.__debug and index < 12:
                 img_w_corners = cv2.drawChessboardCorners(picture, pattern_size, corners, found)
-                plt.subplot(4, 3, i + 1)
+                plt.subplot(4, 3, index + 1)
                 plt.imshow(img_w_corners)
 
             img_points.append(corners.reshape(-1, 2))
             obj_points.append(pattern_points)
+            index += 1
         
         rms, camera_matrix, dist_coefs, _rvecs, _tvecs = cv2.calibrateCamera(obj_points, img_points, (width, height), None, None)
         
@@ -94,7 +98,7 @@ class ObjectOverlay:
         return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
     
     def __findFeatures(self, minimumDistance = 0.75):
-        """ """
+        """ detect features within the known image and the video frame image and build the homographic matrix """
         
         self.__matcher = cv2.BFMatcher()
         self.__featureExtractor = cv2.SIFT_create()
@@ -153,11 +157,12 @@ class ObjectOverlay:
     
         return img
     
-    def __detectAndRender(self):
+    def __detectAndRender(self, objectPath, calibrationVideo):
         """ """
         
-        (rms, camera_matrix, dist_coefs, _rvecs, _tvecs) = self.__calibrateCamera("")
+        (rms, camera_matrix, dist_coefs, _rvecs, _tvecs) = self.__calibrateCamera(calibrationVideo)
         homographicMatrix = self.__findFeatures()
+        height, width = self.__videoFrame.shape[:2]
         
         self.__solveCameraPose() ## cv2.solvePnp
         
@@ -169,7 +174,7 @@ class ObjectOverlay:
             dst = cv2.undistort(imgRGB, camera_matrix, dist_coefs)
             self.__drawnImage = self.__draw(dst, imgpts)
         else:
-           self.__drawnImage = MeshRenderer().draw()
+           self.__drawnImage = MeshRenderer(width, height, objectPath).draw(self.__videoFrame,  _rvecs, _tvecs)
         
         self.__showCurrentImage()
     
@@ -183,7 +188,7 @@ class ObjectOverlay:
         
         return cv2.waitKey(25) & 0xFF == ord('q')
     
-    def render(self, knownPictureFileName, targetObjectFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
+    def render(self, knownPictureFileName, targetObjectFileName, videoFileName, objectPath, calibrationVideo, outputFileName = "output.avi", videoOutput = True):
         """ """
         
         videoWriter = None
@@ -204,7 +209,7 @@ class ObjectOverlay:
                 
                 self.__videoFrameGray = cv2.cvtColor(self.__videoFrame, cv2.COLOR_RGB2GRAY)
                 
-                self.__detectAndRender()
+                self.__detectAndRender(objectPath, calibrationVideo)
                 
                 if videoOutput:
                     videoWriter.write(self.__videoFrame)
@@ -220,4 +225,4 @@ if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
         
-    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], videoOutput = False)
+    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], config["3d_object"], config["calibration_video"], videoOutput = False)

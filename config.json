@@ -4,5 +4,6 @@
   "target_video": "./Tests/target_video.mp4",
   "test_video":  "./Tests/video_test.mp4",
   
-  "3d_object": "./3d_object_files/drill/drill.obj"
+  "3d_object": "./3d_object_files/drill/drill.obj",
+  "calibration_video": "./Tests/calibrationVideo.mp4"
 }
