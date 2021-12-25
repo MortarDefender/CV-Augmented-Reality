@@ -1,7 +1,7 @@
-import numpy as np
 import cv2
 import trimesh
 import pyrender
+import numpy as np
 
 
 class MeshRenderer:
