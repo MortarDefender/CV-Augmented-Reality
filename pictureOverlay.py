@@ -1,7 +1,6 @@
 import cv2
 import json
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class PictureOverlay:
@@ -32,19 +31,18 @@ class PictureOverlay:
         videoWriter = cv2.VideoWriter(outputFileName, cv2.VideoWriter_fourcc(*"XVID"), 30, (width, height))
         return videoWriter
     
-    def __preperImages(self, knownPictureFileName, targetPictureFileName, knownPicturePrep = True):
+    def __preperImages(self, knownPictureFileName, targetPictureFileName):
         """ read the knwon and target image and resize the target if needed for later use """
         
-        if knownPicturePrep:
-            self.__knownPicture = cv2.imread(knownPictureFileName)
-            self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
+        self.__knownPicture = cv2.imread(knownPictureFileName)
+        self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
         
         height, width, channels = self.__knownPicture.shape
         self.__targetPicture = cv2.imread(targetPictureFileName)
         self.__targetPicture = cv2.resize(self.__targetPicture, (width, height))
     
     def __preperAndGetFrame(self, targetVideoCapture):
-        """ """
+        """ read a picture from the targetVideoCapture if the video has ended loop it again """
         
         height, width, channels = self.__knownPicture.shape
         sucess, self.__targetPicture = targetVideoCapture.read()
@@ -55,7 +53,7 @@ class PictureOverlay:
         
         self.__targetPicture = cv2.resize(self.__targetPicture, (width, height))
     
-    def __detectFeatures(self, minimumDistance = 0.75):
+    def __detectFeatures(self, minimumDistance = 1):
         """ detect features within the known image and the video frame image and build the homographic matrix """
         
         self.__matcher = cv2.BFMatcher()
@@ -67,10 +65,7 @@ class PictureOverlay:
         
         if self.__debug:
             test1 = cv2.drawKeypoints(self.__knownPicture, knownKeyPoints, None, flags = cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            plt.figure(figsize=(10, 10))
-            plt.imshow(test1)
-            plt.title("keypoints")
-            plt.show()
+            cv2.imshow('keypoints', test1)
         
         matches = list(self.__matcher.knnMatch(frameDescription, knownDescription, k = 2))
         matches.sort(key=lambda x: x[0].distance / x[1].distance, reverse = False)
@@ -123,7 +118,7 @@ class PictureOverlay:
         return cv2.waitKey(25) & 0xFF == ord('q')
     
     def __runOverlayLoop(self, videoWriter, videoCapture, outputFileName = "output.avi", videoOutput = True, middleRunFunction = None):
-        """ """
+        """ main overlay loop, run over the videoCapture object until the video is done  """
         
         if videoCapture is not None:
             while videoCapture.isOpened():
@@ -164,7 +159,7 @@ class PictureOverlay:
 
     
     def overlayVideo(self, knownPictureFileName, targetVideoFileName, videoFileName, outputFileName = "output.avi", videoOutput = True):
-        """ """
+        """ overlay the target video onto the known picture for each frame of the video, if videoOutput is true then there will be an output file of the video """
         
         videoWriter = None
         videoCapture = self.__getVideoCapture(videoFileName)
