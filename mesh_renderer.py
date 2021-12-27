@@ -31,6 +31,25 @@ class MeshRenderer:
         scene.add(mesh)
 
         # add temp cam
+        """ 
+            fx : float
+     |      X-axis focal length in pixels.
+     |  fy : float
+     |      Y-axis focal length in pixels.
+     |  cx : float
+     |      X-axis optical center in pixels.
+     |  cy : float
+     |      Y-axis optical center in pixels.
+     |  znear : float
+     |      The floating-point distance to the near clipping plane.
+     |      If not specified, defaults to 0.05.
+     |  zfar : float
+     |      The floating-point distance to the far clipping plane.
+     |      ``zfar`` must be greater than ``znear``.
+     |      If not specified, defaults to 100.0.
+     |  name : str, optional
+     |      The user-defined name of this object.
+        """
         self.camera = pyrender.IntrinsicsCamera(
             self.K[0, 0], self.K[1, 1], self.K[0, 2], self.K[1, 2], zfar=10000, name="cam"
         )

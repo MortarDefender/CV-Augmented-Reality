@@ -55,7 +55,7 @@ class ObjectOverlay:
         square_size = 2.88
         pattern_size = (9, 6)
         
-        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if videoFeed else calibrationVideo
+        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if not videoFeed else calibrationVideo
         pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
         pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
         pattern_points *= square_size
@@ -72,7 +72,7 @@ class ObjectOverlay:
             
             if found:
                 term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.1)
-                cv2.cornerSubPix(pictureGrey, corners, (5, 5), (-1, -1), term)
+                corners2 = cv2.cornerSubPix(pictureGrey, corners, (5, 5), (-1, -1), term)
             else:
                 continue
             
@@ -168,10 +168,15 @@ class ObjectOverlay:
         
         if self.__debug:
             i = 0
-            objectPoints = []
-            imgRGB = []
+            square_size = 2.88
+            objectPoints = (
+                3
+                * square_size
+                * np.array([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, -1], [0, 1, -1], [1, 1, -1], [1, 0, -1]])
+            )
+            
             imgpts = cv2.projectPoints(objectPoints, _rvecs[i], _tvecs[i], camera_matrix, dist_coefs)[0]
-            dst = cv2.undistort(imgRGB, camera_matrix, dist_coefs)
+            dst = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
             self.__drawnImage = self.__draw(dst, imgpts)
         else:
            self.__drawnImage = MeshRenderer(width, height, objectPath).draw(self.__videoFrame,  _rvecs, _tvecs)
