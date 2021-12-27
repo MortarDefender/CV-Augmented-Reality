@@ -111,18 +111,18 @@ class ObjectOverlay:
             test1 = cv2.drawKeypoints(self.__knownPicture, knownKeyPoints, None, flags = cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imshow('keypoints', test1)
         
-        matches = list(self.__matcher.knnMatch(frameDescription, knownDescription, k = 2))
-        matches.sort(key=lambda x: x[0].distance / x[1].distance, reverse = False)
-        matches = [match for match in matches if match[0].distance / match[1].distance < minimumDistance]
+        matchPoints = list(self.__matcher.knnMatch(frameDescription, knownDescription, k = 2))
+        matchPoints.sort(key=lambda x: x[0].distance / x[1].distance, reverse = False)
+        matchPoints = [match for match in matchPoints if match[0].distance / match[1].distance < minimumDistance]
         
         if self.__debug:
-            matchesImage = cv2.drawMatchesKnn(self.__videoFrame, frameKeyPoints, self.__knownPicture, knownKeyPoints, matches, None, flags = cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            matchesImage = cv2.drawMatchesKnn(self.__videoFrame, frameKeyPoints, self.__knownPicture, knownKeyPoints, matchPoints, None, flags = cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
             cv2.imshow('matchesImage', matchesImage)
            
         try:
-            matches = np.asarray(matches)[:, 0]
-            goodFrameKeypoints = np.array([frameKeyPoints[m.queryIdx].pt for m in matches])
-            goodKnownKeypoints = np.array([knownKeyPoints[m.trainIdx].pt for m in matches])
+            matchPoints = np.asarray(matchPoints)[:, 0]
+            goodFrameKeypoints = np.array([frameKeyPoints[m.queryIdx].pt for m in matchPoints])
+            goodKnownKeypoints = np.array([knownKeyPoints[m.trainIdx].pt for m in matchPoints])
             homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodFrameKeypoints, cv2.RANSAC, 5.0)
         except Exception:
             print("could not find enught features, trying with larger minimum distance")
@@ -131,12 +131,24 @@ class ObjectOverlay:
         if self.__debug:
             print(homographicMatrix)
         
-        return homographicMatrix
+        return homographicMatrix, goodFrameKeypoints, goodKnownKeypoints
     
-    def __solveCameraPose(self):
+    def __solveCameraPose(self, homographicMatrix, cameraMatrix, distCoeffs, frameKeypoints, knownKeypoints):
         """ """
         
-        pass
+        # possibility 1
+        heigt, width, _ = self.____videoFrame.shape
+        objectSrcPoints = np.float32([[0, 0], [0, heigt], [width, heigt], [width, 0]]).reshape(-1, 1, 2)
+        # objectPoints = np.float32([[0, 0], [0, heigt - 1], [width - 1, heigt - 1], [width - 1, 0]]).reshape(-1, 1, 2)
+        dst = cv2.perspectiveTransform(objectSrcPoints, homographicMatrix)
+        objectPoints = [[point[0], point[1], -1] for point in dst]
+        
+        # possibility 2
+        objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
+        
+        retval, rvec, tvec = cv2.solvePnP(objectPoints, frameKeypoints, cameraMatrix, distCoeffs, flasgs = 0)
+        
+        return rvec, tvec
     
     def __draw(self, img, imgpts):
         """ """
@@ -160,11 +172,12 @@ class ObjectOverlay:
     def __detectAndRender(self, objectPath, calibrationVideo):
         """ """
         
-        (rms, camera_matrix, dist_coefs, _rvecs, _tvecs) = self.__calibrateCamera(calibrationVideo)
-        homographicMatrix = self.__findFeatures()
+        (rms, camera_matrix, dist_coefs, rotationVecstor, translationVecstor) = self.__calibrateCamera(calibrationVideo)
+        self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)  # needed ??
+        homographicMatrix, frameKeypoints, knownKeypoints = self.__findFeatures()
         height, width = self.__videoFrame.shape[:2]
         
-        self.__solveCameraPose() ## cv2.solvePnp
+        r_vec, t_vec = self.__solveCameraPose(homographicMatrix, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints) ## cv2.solvePnp
         
         if self.__debug:
             i = 0
@@ -175,11 +188,11 @@ class ObjectOverlay:
                 * np.array([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, -1], [0, 1, -1], [1, 1, -1], [1, 0, -1]])
             )
             
-            imgpts = cv2.projectPoints(objectPoints, _rvecs[i], _tvecs[i], camera_matrix, dist_coefs)[0]
-            dst = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
-            self.__drawnImage = self.__draw(dst, imgpts)
+            imgpts = cv2.projectPoints(objectPoints, r_vec[i], t_vec[i], camera_matrix, dist_coefs)[0]
+            self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
+            self.__drawnImage = self.__draw(self.__videoFrame, imgpts)
         else:
-           self.__drawnImage = MeshRenderer(width, height, objectPath).draw(self.__videoFrame,  _rvecs, _tvecs)
+           self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
         
         self.__showCurrentImage()
     
