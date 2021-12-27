@@ -3,7 +3,6 @@ import cv2
 import json
 import pickle
 import numpy as np
-# from glob import glob as search
 from matplotlib import pyplot as plt
 from mesh_renderer import MeshRenderer
 
@@ -50,8 +49,8 @@ class ObjectOverlay:
             return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
         
         index = 0
-        obj_points = []
-        img_points = []
+        imagePoints = []
+        objectPoints = []
         square_size = 2.88
         pattern_size = (9, 6)
         
@@ -72,7 +71,7 @@ class ObjectOverlay:
             
             if found:
                 term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.1)
-                corners2 = cv2.cornerSubPix(pictureGrey, corners, (5, 5), (-1, -1), term)
+                corners = cv2.cornerSubPix(pictureGrey, corners, (5, 5), (-1, -1), term)
             else:
                 continue
             
@@ -81,21 +80,21 @@ class ObjectOverlay:
                 plt.subplot(4, 3, index + 1)
                 plt.imshow(img_w_corners)
 
-            img_points.append(corners.reshape(-1, 2))
-            obj_points.append(pattern_points)
+            imagePoints.append(corners.reshape(-1, 2))
+            objectPoints.append(pattern_points)
             index += 1
         
-        rms, camera_matrix, dist_coefs, _rvecs, _tvecs = cv2.calibrateCamera(obj_points, img_points, (width, height), None, None)
+        rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor = cv2.calibrateCamera(objectPoints, imagePoints, (width, height), None, None)
         
         if saveCalibration:
-            pickle.dump(( rms, camera_matrix, dist_coefs, _rvecs, _tvecs), open(savedFile), 'wb')
+            pickle.dump(( rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor), open(savedFile), 'wb')
         
         if self.__debug:
             print("\nRMS:", rms)
-            print("camera matrix:\n", camera_matrix)
-            print("distortion coefficients: ", dist_coefs.ravel())
+            print("camera matrix:\n", cameraMatrix)
+            print("distortion coefficients: ", distCoeffs.ravel())
         
-        return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
+        return (rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor)
     
     def __findFeatures(self, minimumDistance = 0.75):
         """ detect features within the known image and the video frame image and build the homographic matrix """
@@ -126,7 +125,7 @@ class ObjectOverlay:
             homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodFrameKeypoints, cv2.RANSAC, 5.0)
         except Exception:
             print("could not find enught features, trying with larger minimum distance")
-            return self.__detectFeatures(minimumDistance + 0.25)
+            return self.__findFeatures(minimumDistance + 0.25)
         
         if self.__debug:
             print(homographicMatrix)
@@ -134,7 +133,7 @@ class ObjectOverlay:
         return homographicMatrix, goodFrameKeypoints, goodKnownKeypoints
     
     def __solveCameraPose(self, homographicMatrix, cameraMatrix, distCoeffs, frameKeypoints, knownKeypoints):
-        """ """
+        """ get the rotation and translation vector of the camera using the solvePnP """
         
         # possibility 1
         heigt, width, _ = self.____videoFrame.shape
@@ -144,7 +143,7 @@ class ObjectOverlay:
         objectPoints = [[point[0], point[1], -1] for point in dst]
         
         # possibility 2
-        objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
+        ## objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
         
         retval, rvec, tvec = cv2.solvePnP(objectPoints, frameKeypoints, cameraMatrix, distCoeffs, flasgs = 0)
         
@@ -170,7 +169,7 @@ class ObjectOverlay:
         return img
     
     def __detectAndRender(self, objectPath, calibrationVideo):
-        """ """
+        """ detect the image in the frame and create a 3d model on it """
         
         (rms, camera_matrix, dist_coefs, rotationVecstor, translationVecstor) = self.__calibrateCamera(calibrationVideo)
         self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)  # needed ??
