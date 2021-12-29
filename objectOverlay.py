@@ -41,7 +41,7 @@ class ObjectOverlay:
         self.__knownPicture = cv2.imread(knownPictureFileName)
         self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
     
-    def __calibrateCamera(self, calibrationVideo, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
+    def __calibrateCamera(self, calibrationVideo, videoFeed = False, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
         """ calibrate the camera and get the current camera matrix and meta information """
         
         if os.path.isfile(savedFile):
@@ -54,7 +54,7 @@ class ObjectOverlay:
         square_size = 2.88
         pattern_size = (9, 6)
         
-        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo)
+        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if videoFeed else calibrationVideo
         pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
         pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
         pattern_points *= square_size
