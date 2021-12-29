@@ -44,9 +44,9 @@ class ObjectOverlay:
     def __calibrateCamera(self, calibrationVideo, videoFeed = False, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
         """ calibrate the camera and get the current camera matrix and meta information """
         
-        if not os.path.isfile(savedFile):
-            rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile), 'rb')
-            return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
+        if os.path.isfile(savedFile):
+            rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile, 'rb'))
+            return rms, camera_matrix, dist_coefs, _rvecs, _tvecs
         
         index = 0
         imagePoints = []
@@ -54,13 +54,22 @@ class ObjectOverlay:
         square_size = 2.88
         pattern_size = (9, 6)
         
-        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if not videoFeed else calibrationVideo
+        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if videoFeed else calibrationVideo
         pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
         pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
         pattern_points *= square_size
         
         while calibrationVideoCapture.isOpened():
             sucess, picture = calibrationVideoCapture.read()
+            
+            if sucess:
+                break
+            
+            if index % 10 != 0:
+                index += 1
+                continue
+                
+            
             picture = cv2.cvtColor(picture, cv2.COLOR_BGR2RGB)
             pictureGrey = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
             
@@ -136,11 +145,11 @@ class ObjectOverlay:
         """ get the rotation and translation vector of the camera using the solvePnP """
         
         # possibility 1
-        heigt, width, _ = self.____videoFrame.shape
+        heigt, width, _ = self.__knownPicture.shape
         objectSrcPoints = np.float32([[0, 0], [0, heigt], [width, heigt], [width, 0]]).reshape(-1, 1, 2)
         # objectPoints = np.float32([[0, 0], [0, heigt - 1], [width - 1, heigt - 1], [width - 1, 0]]).reshape(-1, 1, 2)
         dst = cv2.perspectiveTransform(objectSrcPoints, homographicMatrix)
-        objectPoints = [[point[0], point[1], -1] for point in dst]
+        objectPoints = np.array([[point[0][0], point[0][1], 0] for point in objectSrcPoints])
         
         # possibility 2
         ## objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
@@ -180,7 +189,7 @@ class ObjectOverlay:
         
         if self.__debug:
             i = 0
-            square_size = 2.88
+            square_size = 60.5 # 2.88
             objectPoints = (
                 3
                 * square_size
