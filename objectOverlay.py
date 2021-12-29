@@ -69,9 +69,6 @@ class ObjectOverlay:
                 index += 1
                 continue
             
-            cv2.imshow('Frame', picture)
-            cv2.waitKey(1)
-            
             picture = cv2.cvtColor(picture, cv2.COLOR_BGR2RGB)
             pictureGrey = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
             
@@ -86,10 +83,11 @@ class ObjectOverlay:
             else:
                 continue
             
-            if self.__debug and index < 12:
+            if self.__debug:
                 img_w_corners = cv2.drawChessboardCorners(picture, pattern_size, corners, found)
-                plt.subplot(4, 3, index + 1)
-                plt.imshow(img_w_corners)
+                cv2.imshow('Frame', picture)
+                cv2.imshow("corner", img_w_corners)
+                cv2.waitKey(1)
 
             imagePoints.append(corners.reshape(-1, 2))
             objectPoints.append(pattern_points)
@@ -188,7 +186,7 @@ class ObjectOverlay:
             self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
             self.__drawnImage = self.__draw(self.__videoFrame, imgpts)
         else:
-            r_vec, t_vec = self.__solveCameraPose(homographicMatrix, mask, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints)
+            r_vec, t_vec = self.__solveCameraPose(homographicMatrix, mask, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints, offset = (0, 7))
             self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
         
         self.__showCurrentImage()
@@ -246,7 +244,7 @@ if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 
-    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
-    # ObjectOverlay().render(config["known_image"], config["3d_object_Chess_Board"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
-    # ObjectOverlay().render(config["known_image"], config["3d_object_dragon"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
-    # ObjectOverlay().render(config["known_image"], config["3d_object_Wood_House"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = True)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_Chess_Board"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = True)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_dragon"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = True)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_Wood_House"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = True)

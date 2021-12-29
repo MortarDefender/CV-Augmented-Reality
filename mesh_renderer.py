@@ -17,9 +17,9 @@ class MeshRenderer:
         T[0:3, 0:3] = 10 * np.eye(3) * (1 / np.max(mesh.bounds))
         mesh.apply_transform(T)
         # rotate to make the drill standup
-        T = np.eye(4)
-        T[0:3, 0:3] = self.rot_x(np.pi / 2)
-        mesh.apply_transform(T)
+        # T = np.eye(4)
+        # T[0:3, 0:3] = self.rot_x(np.pi / 2)
+        # mesh.apply_transform(T)
 
         # rotate 180 around x because the Z dir of the reference grid is down
         T = np.eye(4)
