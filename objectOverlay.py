@@ -136,16 +136,13 @@ class ObjectOverlay:
         """ get the rotation and translation vector of the camera using the solvePnP """
         
         # possibility 1
-        heigt, width, _ = self.__knownPicture.shape
-        objectSrcPoints = np.float32([[0, 0], [0, heigt], [width, heigt], [width, 0]]).reshape(-1, 1, 2)
-        # objectPoints = np.float32([[0, 0], [0, heigt - 1], [width - 1, heigt - 1], [width - 1, 0]]).reshape(-1, 1, 2)
+        pic_height, pic_width, _ = self.__knownPicture.shape
+        cm_height, cm_width = 10, 10
+        objectSrcPoints = np.float32([[0, 0], [0, pic_height], [pic_width, pic_height], [pic_width, 0]]).reshape(-1, 1, 2)
+
         dst = cv2.perspectiveTransform(objectSrcPoints, homographicMatrix)
-        # objectPoints = np.array([[point[0][0], point[0][1], 0] for point in dst])
-        objectPoints = np.array([[point[0][0], point[0][1], 0] for point in objectSrcPoints])
-        
-        # possibility 2
-        ## objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
-        
+        objectPoints = np.array([[0, 0, 0], [0, cm_height, 0], [cm_width, cm_height, 0], [cm_width, 0, 0]], dtype=np.float32)
+
         retval, rvec, tvec = cv2.solvePnP(objectPoints, np.array(dst[:, 0, :]), cameraMatrix, distCoeffs, flags=0)
         
         return rvec, tvec
@@ -176,11 +173,11 @@ class ObjectOverlay:
         self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)  # needed ??
         homographicMatrix, frameKeypoints, knownKeypoints = self.__findFeatures()
         height, width = self.__videoFrame.shape[:2]
-        
+
         r_vec, t_vec = self.__solveCameraPose(homographicMatrix, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints) ## cv2.solvePnp
         
         if self.__debug:
-            square_size = 60.5 #2.88
+            square_size = 2.88
             objectPoints = (
                 3
                 * square_size
