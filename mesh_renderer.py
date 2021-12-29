@@ -26,30 +26,11 @@ class MeshRenderer:
         T[0:3, 0:3] = self.rot_x(np.pi)
         mesh.apply_transform(T)
         # Load the trimesh and put it in a scene
-        mesh = pyrender.Mesh.from_trimesh(mesh)
+        mesh = pyrender.Mesh.from_trimesh(mesh) 
         scene = pyrender.Scene(bg_color=np.array([0, 0, 0, 0]))
         scene.add(mesh)
 
         # add temp cam
-        """ 
-            fx : float
-     |      X-axis focal length in pixels.
-     |  fy : float
-     |      Y-axis focal length in pixels.
-     |  cx : float
-     |      X-axis optical center in pixels.
-     |  cy : float
-     |      Y-axis optical center in pixels.
-     |  znear : float
-     |      The floating-point distance to the near clipping plane.
-     |      If not specified, defaults to 0.05.
-     |  zfar : float
-     |      The floating-point distance to the far clipping plane.
-     |      ``zfar`` must be greater than ``znear``.
-     |      If not specified, defaults to 100.0.
-     |  name : str, optional
-     |      The user-defined name of this object.
-        """
         self.camera = pyrender.IntrinsicsCamera(
             self.K[0, 0], self.K[1, 1], self.K[0, 2], self.K[1, 2], zfar=10000, name="cam"
         )
@@ -61,10 +42,11 @@ class MeshRenderer:
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
+        
         self.cam_node = scene.add(self.camera, pose=light_pose)
 
         # Set up the light -- a single spot light in z+
-        light = pyrender.SpotLight(color=255 * np.ones(3), intensity=3000.0, innerConeAngle=np.pi / 16.0)
+        light = pyrender.SpotLight(color=255 * np.ones(3), intensity=3000.0 * 5, innerConeAngle=np.pi / 16.0)
         scene.add(light, pose=light_pose)
 
         self.scene = scene

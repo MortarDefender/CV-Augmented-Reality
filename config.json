@@ -6,5 +6,7 @@
   
   "calibration_video": "./Tests/calibrationVideo.mp4",
   "3d_object": "./3d_object_files/drill/drill.obj",
-  "3d_object_dragon": "./3d_object_files/dragon/Dragon 2.5_stl.stl"
+  "3d_object_dragon": "./3d_object_files/dragon/Dragon 2.5_stl.stl",
+  "3d_object_Wood_House": "./3d_object_files/WoodHouse/WoodHouse.stl",
+  "3d_object_Chess_Board": "./3d_object_files/Chess_Board/chess.stl"
 }

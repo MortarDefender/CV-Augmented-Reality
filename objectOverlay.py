@@ -41,12 +41,12 @@ class ObjectOverlay:
         self.__knownPicture = cv2.imread(knownPictureFileName)
         self.__knownPictureGray = cv2.cvtColor(self.__knownPicture, cv2.COLOR_RGB2GRAY)
     
-    def __calibrateCamera(self, calibrationVideo, videoFeed = False, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
+    def __calibrateCamera(self, calibrationVideo, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
         """ calibrate the camera and get the current camera matrix and meta information """
         
         if os.path.isfile(savedFile):
             rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile, 'rb'))
-            return rms, camera_matrix, dist_coefs, _rvecs, _tvecs
+            return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
         
         index = 0
         imagePoints = []
@@ -54,7 +54,7 @@ class ObjectOverlay:
         square_size = 2.88
         pattern_size = (9, 6)
         
-        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo) if videoFeed else calibrationVideo
+        calibrationVideoCapture = self.__getVideoCapture(calibrationVideo)
         pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
         pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
         pattern_points *= square_size
@@ -62,13 +62,15 @@ class ObjectOverlay:
         while calibrationVideoCapture.isOpened():
             sucess, picture = calibrationVideoCapture.read()
             
-            if sucess:
+            if not sucess:
                 break
             
-            if index % 10 != 0:
+            if index % 5 != 0:
                 index += 1
                 continue
-                
+            
+            cv2.imshow('Frame', picture)
+            cv2.waitKey(1)
             
             picture = cv2.cvtColor(picture, cv2.COLOR_BGR2RGB)
             pictureGrey = cv2.cvtColor(picture, cv2.COLOR_RGB2GRAY)
@@ -93,15 +95,13 @@ class ObjectOverlay:
             objectPoints.append(pattern_points)
             index += 1
         
+        calibrationVideoCapture.release()
+        cv2.destroyAllWindows()
+        
         rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor = cv2.calibrateCamera(objectPoints, imagePoints, (width, height), None, None)
         
         if saveCalibration:
-            pickle.dump(( rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor), open(savedFile), 'wb')
-        
-        if self.__debug:
-            print("\nRMS:", rms)
-            print("camera matrix:\n", cameraMatrix)
-            print("distortion coefficients: ", distCoeffs.ravel())
+            pickle.dump(( rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor), open(savedFile, 'wb'))
         
         return (rms, cameraMatrix, distCoeffs, rotationVecstor, translationVecstor)
     
@@ -110,7 +110,6 @@ class ObjectOverlay:
         
         self.__matcher = cv2.BFMatcher()
         self.__featureExtractor = cv2.SIFT_create()
-        # self.__featureExtractor = cv2.ORB_create(nfeatures = 1000) 
         
         frameKeyPoints, frameDescription = self.__featureExtractor.detectAndCompute(self.__videoFrameGray, None)
         knownKeyPoints, knownDescription = self.__featureExtractor.detectAndCompute(self.__knownPictureGray, None)
@@ -132,34 +131,25 @@ class ObjectOverlay:
             goodFrameKeypoints = np.array([frameKeyPoints[m.queryIdx].pt for m in matchPoints])
             goodKnownKeypoints = np.array([knownKeyPoints[m.trainIdx].pt for m in matchPoints])
             homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodFrameKeypoints, cv2.RANSAC, 5.0)
+            
         except Exception:
             print("could not find enught features, trying with larger minimum distance")
             return self.__findFeatures(minimumDistance + 0.25)
         
-        if self.__debug:
-            print(homographicMatrix)
-        
-        return homographicMatrix, goodFrameKeypoints, goodKnownKeypoints
+        return homographicMatrix, masked, goodFrameKeypoints, goodKnownKeypoints
     
-    def __solveCameraPose(self, homographicMatrix, cameraMatrix, distCoeffs, frameKeypoints, knownKeypoints):
+    def __solveCameraPose(self, homographicMatrix, mask, cameraMatrix, distCoeffs, frameKeypoints, knownKeypoints, zoom = 100, offset = (0, 0)):
         """ get the rotation and translation vector of the camera using the solvePnP """
         
-        # possibility 1
-        heigt, width, _ = self.__knownPicture.shape
-        objectSrcPoints = np.float32([[0, 0], [0, heigt], [width, heigt], [width, 0]]).reshape(-1, 1, 2)
-        # objectPoints = np.float32([[0, 0], [0, heigt - 1], [width - 1, heigt - 1], [width - 1, 0]]).reshape(-1, 1, 2)
-        dst = cv2.perspectiveTransform(objectSrcPoints, homographicMatrix)
-        objectPoints = np.array([[point[0][0], point[0][1], 0] for point in objectSrcPoints])
+        imagePoints = np.array([frameKeypoints[i] for i, index in enumerate(mask) if index == 1])
+        objectPoints = np.array([[knownKeypoints[i][0] / zoom - offset[0], knownKeypoints[i][1] / zoom - offset[1], 0] for i, index in enumerate(mask) if index == 1])
         
-        # possibility 2
-        ## objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
-        
-        retval, rvec, tvec = cv2.solvePnP(objectPoints, frameKeypoints, cameraMatrix, distCoeffs, flasgs = 0)
+        retval, rvec, tvec = cv2.solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, flags = 0)
         
         return rvec, tvec
     
     def __draw(self, img, imgpts):
-        """ """
+        """ simple drawing of a 3d cube """
         
         blue = (0, 0, 255)
         green = (0, 255, 0)
@@ -180,42 +170,48 @@ class ObjectOverlay:
     def __detectAndRender(self, objectPath, calibrationVideo):
         """ detect the image in the frame and create a 3d model on it """
         
-        (rms, camera_matrix, dist_coefs, rotationVecstor, translationVecstor) = self.__calibrateCamera(calibrationVideo)
-        self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)  # needed ??
-        homographicMatrix, frameKeypoints, knownKeypoints = self.__findFeatures()
-        height, width = self.__videoFrame.shape[:2]
-        
-        r_vec, t_vec = self.__solveCameraPose(homographicMatrix, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints) ## cv2.solvePnp
+        (rms, camera_matrix, dist_coefs, rotationVecstor, translationVecstor) = self.__calibrateCamera(calibrationVideo, True)
+        homographicMatrix, mask, frameKeypoints, knownKeypoints = self.__findFeatures()
+        height, width, _ = self.__videoFrame.shape
+        # self.__maskPicture(homographicMatrix, height, width)
         
         if self.__debug:
-            i = 0
-            square_size = 60.5 # 2.88
+            r_vec, t_vec = self.__solveCameraPose(homographicMatrix, mask, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints, zoom = 21)
+            square_size = 2.88
             objectPoints = (
-                3
+                17
                 * square_size
                 * np.array([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, -1], [0, 1, -1], [1, 1, -1], [1, 0, -1]])
             )
             
-            imgpts = cv2.projectPoints(objectPoints, r_vec[i], t_vec[i], camera_matrix, dist_coefs)[0]
+            imgpts = cv2.projectPoints(objectPoints, r_vec, t_vec, camera_matrix, dist_coefs)[0]
             self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
             self.__drawnImage = self.__draw(self.__videoFrame, imgpts)
         else:
-           self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
+            r_vec, t_vec = self.__solveCameraPose(homographicMatrix, mask, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints)
+            self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
         
         self.__showCurrentImage()
+    
+    def __maskPicture(self, homographicMatrix, height, width):
+        """ mask the underlying picture """
+        whiteImage = np.ones((width, height), dtype="uint8") * 255
+        whiteMask = cv2.warpPerspective(whiteImage, homographicMatrix, (width, height))
+        whiteMask = cv2.bitwise_not(whiteMask)
+        self.__videoFrame = cv2.bitwise_and(self.__videoFrame, self.__videoFrame, mask = whiteMask)
     
     def __showCurrentImage(self):
         """ show the original image """
         
-        cv2.imshow('Frame', self.__drawnImage)  # self.__videoFrame
+        cv2.imshow('Frame', self.__drawnImage)
     
     def __quitDetected(self):
         """ check if the user wants to quit """
         
         return cv2.waitKey(25) & 0xFF == ord('q')
     
-    def render(self, knownPictureFileName, targetObjectFileName, videoFileName, objectPath, calibrationVideo, outputFileName = "output.avi", videoOutput = True):
-        """ """
+    def render(self, knownPictureFileName, targetObjectFileName, videoFileName, calibrationVideo, outputFileName = "output.avi", videoOutput = True):
+        """ render the 3d oject on the known image if found in the video """
         
         videoWriter = None
         videoCapture = self.__getVideoCapture(videoFileName)
@@ -235,7 +231,7 @@ class ObjectOverlay:
                 
                 self.__videoFrameGray = cv2.cvtColor(self.__videoFrame, cv2.COLOR_RGB2GRAY)
                 
-                self.__detectAndRender(objectPath, calibrationVideo)
+                self.__detectAndRender(targetObjectFileName, calibrationVideo)
                 
                 if videoOutput:
                     videoWriter.write(self.__videoFrame)
@@ -245,10 +241,12 @@ class ObjectOverlay:
             if videoOutput:
                 videoWriter.release()
         cv2.destroyAllWindows()
-
-
+    
 if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
-        
-    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], config["3d_object"], config["calibration_video"], videoOutput = False)
+
+    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_Chess_Board"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_dragon"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    # ObjectOverlay().render(config["known_image"], config["3d_object_Wood_House"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
