@@ -4,12 +4,12 @@ import json
 import pickle
 import numpy as np
 from matplotlib import pyplot as plt
-from mesh_renderer import MeshRenderer
+# from mesh_renderer import MeshRenderer
 
 
 class ObjectOverlay:
     def __init__(self):
-        self.__debug = False
+        self.__debug = True
         self.__knownPicture = None
         self.__targetPicture = None
         self.__knownPictureGray = None
@@ -44,9 +44,9 @@ class ObjectOverlay:
     def __calibrateCamera(self, calibrationVideo, videoFeed = False, saveCalibration = False, savedFile = "camera-calibrate.pkl"):
         """ calibrate the camera and get the current camera matrix and meta information """
         
-        if not os.path.isfile(savedFile):
-            rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile), 'rb')
-            return (rms, camera_matrix, dist_coefs, _rvecs, _tvecs)
+        if os.path.isfile(savedFile):
+            rms, camera_matrix, dist_coefs, _rvecs, _tvecs = pickle.load(open(savedFile, 'rb'))
+            return rms, camera_matrix, dist_coefs, _rvecs, _tvecs
         
         index = 0
         imagePoints = []
@@ -136,16 +136,17 @@ class ObjectOverlay:
         """ get the rotation and translation vector of the camera using the solvePnP """
         
         # possibility 1
-        heigt, width, _ = self.____videoFrame.shape
+        heigt, width, _ = self.__knownPicture.shape
         objectSrcPoints = np.float32([[0, 0], [0, heigt], [width, heigt], [width, 0]]).reshape(-1, 1, 2)
         # objectPoints = np.float32([[0, 0], [0, heigt - 1], [width - 1, heigt - 1], [width - 1, 0]]).reshape(-1, 1, 2)
         dst = cv2.perspectiveTransform(objectSrcPoints, homographicMatrix)
-        objectPoints = [[point[0], point[1], -1] for point in dst]
+        # objectPoints = np.array([[point[0][0], point[0][1], 0] for point in dst])
+        objectPoints = np.array([[point[0][0], point[0][1], 0] for point in objectSrcPoints])
         
         # possibility 2
         ## objectPoints = [[point[0], point[1], -1] for point in frameKeypoints]
         
-        retval, rvec, tvec = cv2.solvePnP(objectPoints, frameKeypoints, cameraMatrix, distCoeffs, flasgs = 0)
+        retval, rvec, tvec = cv2.solvePnP(objectPoints, np.array(dst[:, 0, :]), cameraMatrix, distCoeffs, flags=0)
         
         return rvec, tvec
     
@@ -179,20 +180,20 @@ class ObjectOverlay:
         r_vec, t_vec = self.__solveCameraPose(homographicMatrix, camera_matrix, dist_coefs, frameKeypoints, knownKeypoints) ## cv2.solvePnp
         
         if self.__debug:
-            i = 0
-            square_size = 2.88
+            square_size = 60.5 #2.88
             objectPoints = (
                 3
                 * square_size
                 * np.array([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, -1], [0, 1, -1], [1, 1, -1], [1, 0, -1]])
             )
             
-            imgpts = cv2.projectPoints(objectPoints, r_vec[i], t_vec[i], camera_matrix, dist_coefs)[0]
+            imgpts = cv2.projectPoints(objectPoints, r_vec, t_vec, camera_matrix, dist_coefs)[0]
             self.__videoFrame = cv2.undistort(self.__videoFrame, camera_matrix, dist_coefs)
             self.__drawnImage = self.__draw(self.__videoFrame, imgpts)
         else:
-           self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
-        
+           # self.__drawnImage = MeshRenderer(camera_matrix, width, height, objectPath).draw(self.__videoFrame,  r_vec, t_vec)
+            pass
+
         self.__showCurrentImage()
     
     def __showCurrentImage(self):
