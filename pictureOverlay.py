@@ -80,6 +80,7 @@ class PictureOverlay:
             goodFrameKeypoints = np.array([frameKeyPoints[m.queryIdx].pt for m in matches])
             goodKnownKeypoints = np.array([knownKeyPoints[m.trainIdx].pt for m in matches])
             homographicMatrix, masked = cv2.findHomography(goodKnownKeypoints, goodFrameKeypoints, cv2.RANSAC, 5.0)
+            
         except Exception:
             print("could not find enught features, trying with larger minimum distance")
             return self.__detectFeatures(minimumDistance + 0.25)
