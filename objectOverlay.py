@@ -244,7 +244,7 @@ if __name__ == '__main__':
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 
-    ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    # ObjectOverlay().render(config["known_image"], config["3d_object"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
     # ObjectOverlay().render(config["known_image"], config["3d_object_dragon"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
-    # ObjectOverlay().render(config["known_image"], config["3d_object_Wood_House"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
+    ObjectOverlay().render(config["known_image"], config["3d_object_Wood_House"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
     # ObjectOverlay().render(config["known_image"], config["3d_object_Chess_Board"], config["test_video"], "./Tests/calibration_vid.mp4", videoOutput = False)
