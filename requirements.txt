@@ -1,0 +1,5 @@
+opencv-python==4.5.4.60
+pyrender==0.1.45
+trimesh==3.9.36
+matplotlib==2.2.2
+numpy==1.19.5
