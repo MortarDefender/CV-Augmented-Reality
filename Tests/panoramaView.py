@@ -4,9 +4,9 @@ import numpy as np
 import cv2
 
 figsize = (10, 10)
-rgb_l = cv2.cvtColor(cv2.imread("./Tests/left.jpg"), cv2.COLOR_BGR2RGB)
+rgb_l = cv2.cvtColor(cv2.imread("./assets/left.jpg"), cv2.COLOR_BGR2RGB)
 gray_l = cv2.cvtColor(rgb_l, cv2.COLOR_RGB2GRAY)
-rgb_r = cv2.cvtColor(cv2.imread("./Tests/right.jpg"), cv2.COLOR_BGR2RGB)
+rgb_r = cv2.cvtColor(cv2.imread("./assets/right.jpg"), cv2.COLOR_BGR2RGB)
 gray_r = cv2.cvtColor(rgb_r, cv2.COLOR_RGB2GRAY)
 
 # use orb if sift is not installed

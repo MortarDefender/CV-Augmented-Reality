@@ -4,7 +4,7 @@ import json
 import pickle
 import numpy as np
 from matplotlib import pyplot as plt
-from mesh_renderer import MeshRenderer
+from .mesh_renderer import MeshRenderer
 
 
 class ObjectOverlay:

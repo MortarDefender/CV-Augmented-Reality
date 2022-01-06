@@ -1,10 +1,10 @@
 {
-  "known_image": "./Tests/known_image1.jpg",
-  "target_image": "./Tests/target_image.jpg",
-  "target_video": "./Tests/target_video.mp4",
-  "test_video":  "./Tests/video_test.mp4",
+  "known_image": "./assets/known_image1.jpg",
+  "target_image": "./assets/target_image.jpg",
+  "target_video": "./assets/target_video.mp4",
+  "test_video":  "./assets/video_test.mp4",
   
-  "calibration_video": "./Tests/calibrationVideo.mp4",
+  "calibration_video": "./assets/calibration_vid.mp4",
   "3d_object": "./3d_object_files/drill/drill.obj",
   "3d_object_dragon": "./3d_object_files/dragon/Dragon 2.5_stl.stl",
   "3d_object_Wood_House": "./3d_object_files/WoodHouse/WoodHouse.stl",

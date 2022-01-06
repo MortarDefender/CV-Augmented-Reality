@@ -6,18 +6,18 @@ def getRequirements():
     with open("requirements.txt", "r") as f:
         read = f.read()
 
-    return read.split("\m")
+    return read.split("\n")
 
 
 setup(
-    name = 'AR for open cv',
+    name = 'object and picture overlay',
     version= "1.0.1",
-    description='__',
-    long_description='__',
-    author='Matthew Matl',
+    description='AR with open cv for python',
+    long_description='detection of a photo in a video and overlaying it with other pictures, videos or 3d objects',
+    author='Mortar Defender',
     license='MIT License',
-    url = 'https://github.com/mmatl/pyrender',
-    setup_requires = getRequirements,
-    install_requires = getRequirements,
+    url = '__',
+    setup_requires = getRequirements(),
+    install_requires = getRequirements(),
     include_package_data=True
 )
