@@ -6,7 +6,7 @@ using open cv function we can create and map pictures and objects to the real wo
 - cv2 library
 - numpy library
 
-### Installation:
+## Installation:
 installation can be done using conda.
 
 ```cmd
