@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 demo/keypoints matches output.avi
 *.docx
+guidelines.pdf
