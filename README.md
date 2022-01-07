@@ -1,3 +1,5 @@
+[![Python 3.6](https://img.shields.io/badge/Python-3.6-3776AB)](https://www.python.org/downloads/release/python-360/)
+
 # CV-Augmented-Reality
 using open cv function we can create and map pictures and objects to the real world at real time
 
