@@ -28,8 +28,12 @@ from objectOverlay import ObjectOverlay
 ObjectOverlay().render(known_image_file_path, 3d_object_file_path, test_video_file_path, calibration_video_file_path, videoOutput)
 ```
 
+
 # Picture Overlay Demo:
-<img src="demo/picture overlay demo.gif" height="300">
+<img src="demo/picture overlay demo.gif" height="400">
 
 # Object Overlay Demo:
-<img src="demo/3d model rendering demo.gif" height="300">
+<img src="demo/3d model rendering demo.gif" height="400">
+
+# All Models Demo
+<img src="demo/temp/drill model.gif" height="350"> <img src="demo/temp/dragon model.gif" height="350"> <img src="demo/temp/chess board model.gif" height="350"> <img src="demo/temp/cube model detection.gif" height="350">
