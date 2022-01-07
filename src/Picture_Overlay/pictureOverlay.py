@@ -1,5 +1,4 @@
 import cv2
-import json
 import numpy as np
 
 
@@ -172,10 +171,3 @@ class PictureOverlay:
         self.__runOverlayLoop(videoWriter, videoCapture, outputFileName, videoOutput, lambda : self.__preperAndGetFrame(targetVideoCapture))
         
         targetVideoCapture.release()
-
-if __name__ == '__main__':
-    with open('config.json', 'r') as json_file:
-        config = json.load(json_file)
-    
-    PictureOverlay().overlayImage(config["known_image"], config["target_image"], config["test_video"], videoOutput = False)
-    # PictureOverlay().overlayVideo(config["known_image"], config["target_video"], config["test_video"], videoOutput = False)
