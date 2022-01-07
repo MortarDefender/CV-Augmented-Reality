@@ -36,4 +36,4 @@ ObjectOverlay().render(known_image_file_path, 3d_object_file_path, test_video_fi
 <img src="demo/3d model rendering demo.gif" height="400">
 
 # All Models Demo
-<img src="demo/temp/drill model.gif" height="350"> <img src="demo/temp/dragon model.gif" height="350"> <img src="demo/temp/chess board model.gif" height="350"> <img src="demo/temp/cube model detection.gif" height="350">
+<img src="demo/models_demo/drill model.gif" height="350"> <img src="demo/models_demo/dragon model.gif" height="350"> <img src="demo/models_demo/chess board model.gif" height="350"> <img src="demo/models_demo/cube model detection.gif" height="350">
